@@ -7,12 +7,13 @@ import { Button } from "@/components/ui/button";
 export default async function AdminEducationPage() {
   // Fetch all education records, sorted by the custom order field
   const educations = await db.education.findMany({
+    where: { isDeleted: false },
     orderBy: { order: "asc" },
   });
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4 sm:gap-0">
         <div>
           <h1 className="text-2xl font-bold">Manage Education</h1>
           <p className="text-muted-foreground">
