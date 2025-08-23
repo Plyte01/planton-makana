@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Github } from "lucide-react";
 
 export default function SignInPage() {
-    const [email, setEmail] = useState("");
+    //const [email, setEmail] = useState("");
     // const [isLoading, setIsLoading] = useState(false);
     const [isLoading] = useState(false);
 
