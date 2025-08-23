@@ -3,20 +3,21 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+// import { Input } from "@/components/ui/input";
+// import { Label } from "@/components/ui/label";
 import { Github } from "lucide-react";
 
 export default function SignInPage() {
     const [email, setEmail] = useState("");
-    const [isLoading, setIsLoading] = useState(false);
+    // const [isLoading, setIsLoading] = useState(false);
+    const [isLoading] = useState(false);
 
-    const handleEmailSignIn = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-        await signIn("email", { email, callbackUrl: "/dashboard" });
-        setIsLoading(false);
-    };
+    // const handleEmailSignIn = async (e: React.FormEvent) => {
+    //     e.preventDefault();
+    //     setIsLoading(true);
+    //     await signIn("email", { email, callbackUrl: "/dashboard" });
+    //     setIsLoading(false);
+    // };
 
     return (
         <div className="flex min-h-screen flex-col items-center justify-center">
@@ -26,7 +27,7 @@ export default function SignInPage() {
                     Sign in to manage your portfolio content.
                 </p>
 
-                <form onSubmit={handleEmailSignIn} className="space-y-4">
+{/*                 <form onSubmit={handleEmailSignIn} className="space-y-4">
                     <div>
                         <Label htmlFor="email">Email</Label>
                         <Input
@@ -42,7 +43,7 @@ export default function SignInPage() {
                     <Button type="submit" className="w-full" disabled={isLoading}>
                         {isLoading ? "Sending link..." : "Sign in with Email"}
                     </Button>
-                </form>
+                </form> */}
 
                 <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
@@ -50,7 +51,7 @@ export default function SignInPage() {
                     </div>
                     <div className="relative flex justify-center text-xs uppercase">
                         <span className="bg-background px-2 text-muted-foreground">
-                            Or continue with
+{/*                             Or continue with */}
                         </span>
                     </div>
                 </div>
