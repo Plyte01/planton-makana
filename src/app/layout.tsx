@@ -65,6 +65,10 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
   },
+  verification: {
+    // --- THIS IS THE ADDED VERIFICATION KEY ---
+    google: "_HsBMh7UClKN55s11Jl0b_HuiPc11iljJCFdxelymMI",
+  },
 };
 
 export default function RootLayout({
