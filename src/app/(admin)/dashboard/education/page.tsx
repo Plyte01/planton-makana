@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 export default async function AdminEducationPage() {
   // Fetch all education records, sorted by the custom order field
   const educations = await db.education.findMany({
-    where: { isDeleted: false },
     orderBy: { order: "asc" },
   });
 
