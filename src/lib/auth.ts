@@ -39,6 +39,12 @@ export const authOptions: NextAuthOptions = {
     GitHubProvider({
       clientId: process.env.GITHUB_CLIENT_ID!,
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+      // --- THIS IS THE DEFINITIVE FIX ---
+      // This option allows NextAuth to automatically link a new OAuth sign-in
+      // to an existing user account if they share the same verified email address.
+      // This is exactly what we need for our seed script workflow.
+      allowDangerousEmailAccountLinking: true,
+      // ------------------------------------
     }),
     // EmailProvider({
     //   server: {
