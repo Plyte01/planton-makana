@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { uploadFromBuffer } from '@/lib/cloudinary';
 import { authOptions } from '@/lib/auth';
 import { getServerSession } from 'next-auth';
+import path from 'path'; // Import the path module
 
 // Disable the default body parser to handle FormData
 export const config = {
@@ -36,14 +37,14 @@ export async function POST(req: NextRequest) {
             resource_type = 'raw';
         }
 
+        const fileExtension = path.extname(file.name).substring(1);
+
         // --- NEW UPLOAD LOGIC ---
         // This tells Cloudinary to keep the original filename for delivery,
         // but to use a unique, randomly generated public_id for storage.
         const uploadOptions = {
             resource_type,
-            use_filename: true, // Use the original filename
-            unique_filename: false, // Don't add random characters to the filename itself
-            overwrite: true,
+            format: fileExtension,
         };
         // ------------------------
 
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
             secure_url: result.secure_url,
             public_id: result.public_id,
-            original_filename: file.name, // We still pass this back for the form UI
+
         });
     } catch (error) {
         console.error('Error uploading to Cloudinary:', error);

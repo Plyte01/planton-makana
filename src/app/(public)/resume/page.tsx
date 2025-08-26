@@ -25,7 +25,7 @@ export default async function ResumePage() {
 
         {defaultResume ? (
           <div className="rounded-lg border bg-card p-8 text-card-foreground shadow-sm animate-fade-in-up">
-            <div className="flex flex-col items-center text-center md-flex-row md:text-left gap-8">
+            <div className="flex flex-col items-center text-center md:flex-row md:text-left gap-8">
               <FileText className="mb-4 h-20 w-20 text-primary md:mb-0 md:mr-8" />
               <div className="flex-grow">
                 <h2 className="text-2xl font-semibold">
@@ -39,14 +39,12 @@ export default async function ResumePage() {
               </div>
               <Button asChild className="mt-6 w-full md:mt-0 md:w-auto" size="lg">
                 {/* --- THE FINAL, SIMPLE DOWNLOAD LINK --- */}
-                {/* No more transformations needed! The URL from the DB is already correct. */}
                 <a
-                  href={defaultResume.fileUrl}
+                  href={defaultResume.fileUrl} // Use the URL directly from the database
                   target="_blank"
                   rel="noopener noreferrer"
-                  // The download attribute is now a powerful hint to the browser
-                  // using the title as the filename.
-                  download={defaultResume.title}
+                  // The download attribute is a good hint, but the URL itself does the work
+                  download
                 >
                   <Download className="mr-2 h-4 w-4" />
                   Download
@@ -62,7 +60,7 @@ export default async function ResumePage() {
               Resume Not Available
             </h2>
             <p className="mt-2 text-muted-foreground">
-              A public resume has not been uploaded yet. Please check back later.
+              A public resume has not been uploaded yet.
             </p>
           </div>
         )}
