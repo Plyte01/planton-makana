@@ -60,5 +60,6 @@ export async function updateProfile(values: z.infer<typeof profileSchema>) {
 
     revalidatePath("/(admin)/dashboard/profile");
     revalidatePath("/(public)/about"); // Revalidate the public about page
+    revalidatePath("/(public)"); 
     return { status: "success" as const, message: "Profile updated successfully." };
 }
