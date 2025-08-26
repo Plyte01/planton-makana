@@ -27,13 +27,8 @@ export default async function ResumePage() {
     const cleanFilename = slugify(title);
     const downloadFilename = `${cleanFilename}${fileExtension}`;
 
-    // Cloudinary split (before and after /upload/)
-    const parts = url.split("/upload/");
-    if (parts.length !== 2) return url; // Fallback if invalid URL
-
-    // Construct proper Cloudinary download link
-    // Docs: https://cloudinary.com/documentation/image_transformations#automatic_download
-    return `${parts[0]}/upload/fl_attachment:${encodeURIComponent(downloadFilename)}/${parts[1]}`;
+    // For RAW/DOC/PDF resources, safest is query param
+    return `${url}?fl_attachment=${encodeURIComponent(downloadFilename)}`;
   };
 
   return (
