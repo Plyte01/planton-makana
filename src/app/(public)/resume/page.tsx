@@ -16,24 +16,25 @@ export default async function ResumePage() {
     },
   });
 
-  // --- THIS IS THE NEW URL TRANSFORMATION LOGIC ---
+  // --- FIXED CLOUDINARY DOWNLOAD TRANSFORMATION ---
   const createDownloadUrl = (url: string, title: string) => {
-    // Find the file extension from the original URL
+    if (!url) return "#";
+
+    // Get extension (e.g., .pdf, .docx)
     const fileExtension = url.substring(url.lastIndexOf('.'));
-    
-    // Create a clean, URL-safe filename from the resume's title
+
+    // Clean file title for filename
     const cleanFilename = slugify(title);
     const downloadFilename = `${cleanFilename}${fileExtension}`;
 
-    // Split the URL to insert the special transformation flag
+    // Cloudinary split (before and after /upload/)
     const parts = url.split("/upload/");
-    if (parts.length !== 2) return url; // Fallback
+    if (parts.length !== 2) return url; // Fallback if invalid URL
 
-    // Construct the new URL with the fl_attachment flag and the desired filename
-    // Example: fl_attachment:My-Resume.pdf
-    return `${parts[0]}/upload/fl_attachment:${downloadFilename}/${parts[1]}`;
+    // Construct proper Cloudinary download link
+    // Docs: https://cloudinary.com/documentation/image_transformations#automatic_download
+    return `${parts[0]}/upload/fl_attachment:${encodeURIComponent(downloadFilename)}/${parts[1]}`;
   };
-  // -------------------------------------------
 
   return (
     <section className="py-16 md:py-24 animate-fade-in-up bg-gradient-to-br from-primary/10 via-background to-secondary/10">
@@ -61,7 +62,6 @@ export default async function ResumePage() {
                   href={createDownloadUrl(defaultResume.fileUrl, defaultResume.title)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  download
                 >
                   <Download className="mr-2 h-4 w-4" />
                   Download
