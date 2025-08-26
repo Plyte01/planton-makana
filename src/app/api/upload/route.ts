@@ -36,19 +36,24 @@ export async function POST(req: NextRequest) {
             resource_type = 'raw';
         }
 
-        // 5. Upload to Cloudinary with original filename preserved
-        const result = await uploadFromBuffer(buffer, {
+        // --- NEW UPLOAD LOGIC ---
+        // This tells Cloudinary to keep the original filename for delivery,
+        // but to use a unique, randomly generated public_id for storage.
+        const uploadOptions = {
             resource_type,
-            use_filename: true,      // ✅ keep the original filename
-            unique_filename: true,   // ✅ prevent collisions
-            overwrite: false,        // ✅ don’t overwrite existing files
-        });
+            use_filename: true, // Use the original filename
+            unique_filename: false, // Don't add random characters to the filename itself
+            overwrite: true,
+        };
+        // ------------------------
 
-        // 6. Return the secure URL and public ID
+        // 5. Upload to Cloudinary with original filename preserved
+        const result = await uploadFromBuffer(buffer, uploadOptions);
+
         return NextResponse.json({
             secure_url: result.secure_url,
             public_id: result.public_id,
-            original_filename: file.name,
+            original_filename: file.name, // We still pass this back for the form UI
         });
     } catch (error) {
         console.error('Error uploading to Cloudinary:', error);
