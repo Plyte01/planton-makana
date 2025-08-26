@@ -2,6 +2,7 @@
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Download, FileText, XCircle } from "lucide-react";
+import { slugify } from "@/lib/utils";
 
 export default async function ResumePage() {
   const defaultResume = await db.resume.findFirst({
@@ -15,21 +16,24 @@ export default async function ResumePage() {
     },
   });
 
-  // --- THIS IS THE FIX ---
-  const createDownloadUrl = (url: string) => {
-    // This helper function adds the "force download" flag to the Cloudinary URL.
-    // It splits the URL at the "/upload/" part and inserts "/fl_attachment/"
-    // Example: https://res.cloudinary.com/demo/raw/upload/v123/my_file.pdf
-    // Becomes: https://res.cloudinary.com/demo/raw/upload/fl_attachment/v123/my_file.pdf
+  // --- THIS IS THE NEW URL TRANSFORMATION LOGIC ---
+  const createDownloadUrl = (url: string, title: string) => {
+    // Find the file extension from the original URL
+    const fileExtension = url.substring(url.lastIndexOf('.'));
     
+    // Create a clean, URL-safe filename from the resume's title
+    const cleanFilename = slugify(title);
+    const downloadFilename = `${cleanFilename}${fileExtension}`;
+
+    // Split the URL to insert the special transformation flag
     const parts = url.split("/upload/");
-    if (parts.length !== 2) {
-      // If the URL is not in the expected format, return it as is.
-      return url;
-    }
-    return `${parts[0]}/upload/fl_attachment/${parts[1]}`;
+    if (parts.length !== 2) return url; // Fallback
+
+    // Construct the new URL with the fl_attachment flag and the desired filename
+    // Example: fl_attachment:My-Resume.pdf
+    return `${parts[0]}/upload/fl_attachment:${downloadFilename}/${parts[1]}`;
   };
-  // -----------------------
+  // -------------------------------------------
 
   return (
     <section className="py-16 md:py-24 animate-fade-in-up bg-gradient-to-br from-primary/10 via-background to-secondary/10">
@@ -54,7 +58,7 @@ export default async function ResumePage() {
               </div>
               <Button asChild className="mt-6 w-full md:mt-0 md:w-auto">
                 <a
-                  href={createDownloadUrl(defaultResume.fileUrl)}
+                  href={createDownloadUrl(defaultResume.fileUrl, defaultResume.title)}
                   target="_blank"
                   rel="noopener noreferrer"
                   download
