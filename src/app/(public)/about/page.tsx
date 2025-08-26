@@ -109,14 +109,6 @@ export default async function AboutPage() {
             </div>
           </div>
         )}
-        
-        {/* Skills */}
-        <div className="mt-12">
-          <h3 className="text-2xl font-bold mb-4">My Skills</h3>
-          <div className="flex flex-wrap gap-2">
-            {admin.skills.map(skill => <Badge key={skill}>{skill}</Badge>)}
-          </div>
-        </div>
       </div>
     </section>
   );
