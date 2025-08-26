@@ -60,8 +60,9 @@ export default async function ResumePage() {
               <Button asChild className="mt-6 w-full md:mt-0 md:w-auto">
                 <a
                   href={createDownloadUrl(defaultResume.fileUrl, defaultResume.title)}
-                  target="_blank"
+                  //target="_blank"
                   rel="noopener noreferrer"
+                  download
                 >
                   <Download className="mr-2 h-4 w-4" />
                   Download
