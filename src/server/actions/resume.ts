@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { authOptions } from "@/lib/auth";
 import { getServerSession } from "next-auth";
 import cloudinary from "@/lib/cloudinary";
+import { MediaType } from "@prisma/client";
 
 const resumeSchema = z.object({
     title: z.string().min(3, "Title is required."),
@@ -14,50 +15,96 @@ const resumeSchema = z.object({
     publicId: z.string().min(1, "Public ID is missing."),
 });
 
-// This is a placeholder for the real action that would handle file uploads
-export async function uploadResume(values: z.infer<typeof resumeSchema>) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) return { status: "error", message: "Unauthorized" };
-
-    const validatedFields = resumeSchema.safeParse(values);
-    if (!validatedFields.success) return { status: "error", message: "Invalid data." };
-
-    await db.resume.create({
-        data: {
-            ...validatedFields.data,
-            userId: session.user.id,
-            mediaId: validatedFields.data.publicId,
-        }
-    });
-    revalidatePath('/(admin)/dashboard/resume');
-    return { status: "success", message: "Resume uploaded." };
+// Helper function to check for admin session
+async function getAdminSession() {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== "ADMIN") throw new Error("Unauthorized");
+  return session;
 }
 
-export async function deleteResume(id: string) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) return { status: "error", message: "Unauthorized" };
+// --- CORRECTED UPLOAD FUNCTION ---
+export async function uploadResume(values: z.infer<typeof resumeSchema>) {
+    const session = await getAdminSession();
+    const validatedFields = resumeSchema.safeParse(values);
+    if (!validatedFields.success) return { status: "error" as const, message: "Invalid form data." };
 
-    const resumeToDelete = await db.resume.findUnique({ where: { id } });
-    if (resumeToDelete?.mediaId) {
-        // Use 'destroy' for images/videos, 'delete_resources' for raw files
-        await cloudinary.api.delete_resources([resumeToDelete.mediaId], { resource_type: 'raw' });
+    const { title, fileUrl, publicId } = validatedFields.data;
+
+    try {
+        // Step 1: Create the Media record first.
+        const newMedia = await db.media.create({
+            data: {
+                url: fileUrl,
+                publicId: publicId,
+                type: MediaType.PDF, // Or determine dynamically if needed
+            }
+        });
+
+        // Step 2: Create the Resume record and link it using the NEW mediaId.
+        await db.resume.create({
+            data: {
+                title: title,
+                fileUrl: fileUrl, // Storing the URL directly is still convenient for the public page
+                userId: session.user.id,
+                mediaId: newMedia.id, // This is the correct foreign key
+            }
+        });
+
+        revalidatePath('/(admin)/dashboard/resume');
+        return { status: "success" as const, message: "Resume uploaded successfully." };
+    } catch (error) {
+        console.error("Upload Resume Error:", error);
+        return { status: "error" as const, message: "Failed to save the resume to the database." };
+    }
+}
+
+
+// --- CORRECTED DELETE FUNCTION ---
+export async function deleteResume(id: string) {
+    await getAdminSession();
+    
+    // Step 1: Find the resume AND its related media record to get the publicId.
+    const resumeToDelete = await db.resume.findUnique({
+        where: { id },
+        include: {
+            media: true, // This is the crucial part
+        }
+    });
+    
+    if (!resumeToDelete) {
+        throw new Error("Resume not found.");
     }
 
-    await db.resume.delete({ where: { id }});
-    revalidatePath('/(admin)/dashboard/resume');
-    return { status: "success", message: "Resume deleted successfully." };
+    try {
+        // Step 2: Use the CORRECT publicId to delete the file from Cloudinary.
+        if (resumeToDelete.media?.publicId) {
+            await cloudinary.api.delete_resources([resumeToDelete.media.publicId], { resource_type: 'raw' });
+        }
+
+        // Step 3: Delete the resume record. Because of the relation, Prisma may handle the media record deletion.
+        // For explicitness, we will delete both.
+        await db.resume.delete({ where: { id } });
+        
+        // Step 4: Also delete the associated media record from our database.
+        if (resumeToDelete.mediaId) {
+            await db.media.delete({ where: { id: resumeToDelete.mediaId } });
+        }
+
+        revalidatePath('/(admin)/dashboard/resume');
+        return { status: "success" as const, message: "Resume deleted successfully." };
+    } catch (error) {
+        console.error("Delete Resume Error:", error);
+        return { status: "error" as const, message: "Failed to delete the resume." };
+    }
 }
 
 export async function setDefaultResume(id: string) {
-    // ... permission checks
-    // Use a transaction to ensure atomicity
+    await getAdminSession();
     await db.$transaction([
-        // Set all other resumes to not be the default
         db.resume.updateMany({ where: { isDefault: true }, data: { isDefault: false } }),
-        // Set the selected resume as the default
         db.resume.update({ where: { id }, data: { isDefault: true } }),
     ]);
     revalidatePath('/(admin)/dashboard/resume');
     revalidatePath('/(public)/resume');
-    return { status: "success", message: "Default resume updated." };
+    return { status: "success" as const, message: "Default resume has been updated." };
 }
