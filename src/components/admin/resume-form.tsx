@@ -29,6 +29,8 @@ export function UploadResumeButton() {
   const [isPending, startTransition] = useTransition();
   const form = useForm<ResumeFormValues>({ resolver: zodResolver(resumeSchema), defaultValues: { title: "", fileUrl: "", publicId: "" } });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [originalFilename, setOriginalFilename] = useState(""); // <-- State to hold the filename for display
+  
 
   // --- THIS IS THE NEW UPLOAD LOGIC ---
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,7 +57,8 @@ export function UploadResumeButton() {
       // Set the returned URL and publicId into the form state
       form.setValue("fileUrl", data.secure_url, { shouldValidate: true });
       form.setValue("publicId", data.public_id, { shouldValidate: true });
-      toast.success("File uploaded successfully!");
+      setOriginalFilename(data.original_filename); // <-- Store filename in state for UI
+      toast.success(`File "${data.original_filename}" uploaded successfully!`);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
@@ -73,6 +76,7 @@ export function UploadResumeButton() {
         toast.success(result.message);
         setOpen(false);
         form.reset({ title: "", fileUrl: "", publicId: "" });
+        setOriginalFilename(""); // Clear filename state
       } else {
         toast.error(result.message);
       }
@@ -86,35 +90,20 @@ export function UploadResumeButton() {
         <DialogHeader><DialogTitle>Upload New Resume</DialogTitle></DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField name="title" control={form.control} render={({ field }) => ( <FormItem><FormLabel>Resume Title</FormLabel><FormControl><Input {...field} placeholder="e.g., Q4 2025 - Engineering Focus" /></FormControl><FormMessage /></FormItem> )} />
-            
+            <FormField name="title" control={form.control} render={({ field }) => ( <FormItem><FormLabel>Resume Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
             <FormItem>
               <FormLabel>Resume File (PDF/DOCX)</FormLabel>
               <FormControl>
                 <>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pdf,.doc,.docx" // Specify accepted file types
-                    className="hidden"
-                    onChange={handleFileChange}
-                    disabled={isUploading}
-                  />
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full"
-                    disabled={isUploading}
-                  >
+                  <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleFileChange} disabled={isUploading} />
+                  <Button type="button" variant="secondary" onClick={() => fileInputRef.current?.click()} className="w-full" disabled={isUploading}>
                     {isUploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin"/> : form.watch("fileUrl") ? <CheckCircle className="h-4 w-4 mr-2 text-green-500"/> : <FileUp className="h-4 w-4 mr-2" />}
-                    {isUploading ? "Uploading..." : form.watch("fileUrl") ? "File Selected" : "Choose File"}
+                    {isUploading ? "Uploading..." : originalFilename || "Choose File"}
                   </Button>
                 </>
               </FormControl>
               <FormMessage>{form.formState.errors.fileUrl?.message}</FormMessage>
             </FormItem>
-            
             <DialogFooter>
               <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
               <Button type="submit" disabled={isPending || isUploading || !form.watch("fileUrl")}>
