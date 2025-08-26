@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
-import { FileUp, CheckCircle } from "lucide-react";
+import { FileUp, CheckCircle, Loader2 } from "lucide-react";
 import React, { useRef } from "react";
 
 const resumeSchema = z.object({
@@ -21,14 +21,52 @@ const resumeSchema = z.object({
   publicId: z.string().min(1, "Public ID is missing."),
 });
 
+type ResumeFormValues = z.infer<typeof resumeSchema>;
 
 export function UploadResumeButton() {
   const [open, setOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const form = useForm<z.infer<typeof resumeSchema>>({ resolver: zodResolver(resumeSchema) });
+  const form = useForm<ResumeFormValues>({ resolver: zodResolver(resumeSchema), defaultValues: { title: "", fileUrl: "", publicId: "" } });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const onSubmit = (values: z.infer<typeof resumeSchema>) => {
+  // --- THIS IS THE NEW UPLOAD LOGIC ---
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Upload failed. Please try again.');
+      }
+
+      const data = await response.json();
+      
+      // Set the returned URL and publicId into the form state
+      form.setValue("fileUrl", data.secure_url, { shouldValidate: true });
+      form.setValue("publicId", data.public_id, { shouldValidate: true });
+      toast.success("File uploaded successfully!");
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      toast.error(error.message || "Something went wrong during upload.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+  // ------------------------------------
+
+  const onSubmit = (values: ResumeFormValues) => {
     startTransition(async () => {
       const result = await uploadResume(values);
       if (result.status === "success") {
@@ -48,47 +86,40 @@ export function UploadResumeButton() {
         <DialogHeader><DialogTitle>Upload New Resume</DialogTitle></DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField name="title" control={form.control} render={({ field }) => ( <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} placeholder="e.g., Q3 2025 - Web Developer" /></FormControl><FormMessage /></FormItem> )} />
-            <FormField name="fileUrl" control={form.control} render={({ field }) => {
-              const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  const url = URL.createObjectURL(file);
-                  field.onChange(url);
-                  // Optionally, you can store the file object somewhere for upload to server
-                }
-              };
-              return (
-                <FormItem>
-                  <FormLabel>Resume File (PDF/DOCX)</FormLabel>
-                  <FormControl>
-                    <>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".pdf,.docx"
-                        className="hidden"
-                        onChange={handleFileChange}
-                      />
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-full"
-                      >
-                        {field.value ? <CheckCircle className="h-4 w-4 mr-2 text-green-500"/> : <FileUp className="h-4 w-4 mr-2" />}
-                        {field.value ? "File Selected" : "Choose File"}
-                      </Button>
-                    </>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              );
-            }} />
+            <FormField name="title" control={form.control} render={({ field }) => ( <FormItem><FormLabel>Resume Title</FormLabel><FormControl><Input {...field} placeholder="e.g., Q4 2025 - Engineering Focus" /></FormControl><FormMessage /></FormItem> )} />
+            
+            <FormItem>
+              <FormLabel>Resume File (PDF/DOCX)</FormLabel>
+              <FormControl>
+                <>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.doc,.docx" // Specify accepted file types
+                    className="hidden"
+                    onChange={handleFileChange}
+                    disabled={isUploading}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full"
+                    disabled={isUploading}
+                  >
+                    {isUploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin"/> : form.watch("fileUrl") ? <CheckCircle className="h-4 w-4 mr-2 text-green-500"/> : <FileUp className="h-4 w-4 mr-2" />}
+                    {isUploading ? "Uploading..." : form.watch("fileUrl") ? "File Selected" : "Choose File"}
+                  </Button>
+                </>
+              </FormControl>
+              <FormMessage>{form.formState.errors.fileUrl?.message}</FormMessage>
+            </FormItem>
             
             <DialogFooter>
               <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
-              <Button type="submit" disabled={isPending}>{isPending ? "Saving..." : "Save Resume"}</Button>
+              <Button type="submit" disabled={isPending || isUploading || !form.watch("fileUrl")}>
+                {isPending ? "Saving..." : "Save Resume"}
+              </Button>
             </DialogFooter>
           </form>
         </Form>
