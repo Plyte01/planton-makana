@@ -36,8 +36,13 @@ export async function POST(req: NextRequest) {
             resource_type = 'raw';
         }
 
-        // 5. Upload to Cloudinary
-        const result = await uploadFromBuffer(buffer, { resource_type });
+        // 5. Upload to Cloudinary with original filename preserved
+        const result = await uploadFromBuffer(buffer, {
+            resource_type,
+            use_filename: true,      // ✅ keep the original filename
+            unique_filename: true,   // ✅ prevent collisions
+            overwrite: false,        // ✅ don’t overwrite existing files
+        });
 
         // 6. Return the secure URL and public ID
         return NextResponse.json({
