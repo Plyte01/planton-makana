@@ -23,4 +23,27 @@ export const uploadFromBuffer = (buffer: Buffer, options: any): Promise<UploadAp
     });
 };
 
+export const getSignedDownloadUrl = (publicId: string, filename: string): string => {
+    // This tells Cloudinary to force a download with a specific filename.
+    const attachmentFlag = `fl_attachment:${filename}`;
+
+    const signedUrl = cloudinary.utils.private_download_url(publicId, '', {
+        resource_type: 'raw', // Important for non-image files
+        type: 'upload',
+        // The URL will be valid for 1 hour
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        // Apply the download flag as a transformation
+        attachment: true,
+    });
+    
+    // Manually inject the filename transformation for a cleaner download name
+    // This is a more robust way than relying on the `attachment` parameter alone for naming.
+    const urlParts = signedUrl.split('/upload/');
+    if (urlParts.length === 2) {
+        return `${urlParts[0]}/upload/${attachmentFlag}/${urlParts[1]}`;
+    }
+
+    return signedUrl; // Fallback
+};
+
 export default cloudinary;
