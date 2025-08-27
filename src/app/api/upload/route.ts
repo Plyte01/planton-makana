@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
             secure_url: result.secure_url,
             public_id: result.public_id,
-
+            original_filename: file.name,
         });
     } catch (error) {
         console.error('Error uploading to Cloudinary:', error);
