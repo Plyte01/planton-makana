@@ -3,22 +3,27 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { Readable } from 'stream'; // Import Readable from stream
 
-// Helper function to convert a Web Stream to a Node.js stream
-async function webStreamToNodeStream(webStream: ReadableStream<Uint8Array>) {
+// --- THIS IS THE DEFINITIVE FIX ---
+// This line explicitly tells Vercel to run this route in the Node.js environment.
+// This gives it access to the full Node.js API, including robust streaming.
+export const runtime = 'nodejs';
+// ------------------------------------
+
+// Helper function to convert a Web Stream (from fetch) to a Node.js Readable stream
+function webStreamToNodeReadable(webStream: ReadableStream<Uint8Array>): Readable {
     const reader = webStream.getReader();
-    const { PassThrough } = await import('stream');
-    const nodeStream = new PassThrough();
-    const pump = async () => {
-        const { done, value } = await reader.read();
-        if (done) {
-            nodeStream.end();
-            return;
+    const nodeStream = new Readable({
+        async read() {
+            const { done, value } = await reader.read();
+            if (done) {
+                this.push(null); // Signal the end of the stream
+                return;
+            }
+            this.push(value);
         }
-        nodeStream.write(value);
-        pump();
-    };
-    pump();
+    });
     return nodeStream;
 }
 
@@ -26,24 +31,19 @@ export async function GET(req: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
         const { searchParams } = new URL(req.url);
-        const resumeId = searchParams.get("id"); // Get ID from query param
+        const resumeId = searchParams.get("id");
 
         let resumeToDownload;
 
         if (resumeId) {
-            // If an ID is provided, this is likely an admin request.
-            // Ensure the user is logged in.
             if (!session) {
-                return new NextResponse('Unauthorized: Must be logged in to download specific resumes.', { status: 401 });
+                return new NextResponse('Unauthorized', { status: 401 });
             }
-            // Fetch the specific resume by its ID
             resumeToDownload = await db.resume.findUnique({
                 where: { id: resumeId },
                 include: { media: true },
             });
         } else {
-            // If NO ID is provided, this is a public request for the default resume.
-            // This does not require a session.
             resumeToDownload = await db.resume.findFirst({
                 where: { isDefault: true, isPublic: true, isDeleted: false },
                 orderBy: { createdAt: 'desc' },
@@ -52,30 +52,30 @@ export async function GET(req: NextRequest) {
         }
 
         if (!resumeToDownload || !resumeToDownload.media || !resumeToDownload.media.originalFilename) {
-            return new NextResponse('Resume not found or is missing file data.', { status: 404 });
+            return new NextResponse('Resume not found.', { status: 404 });
         }
 
-        // Fetch the file from Cloudinary as a stream
         const response = await fetch(resumeToDownload.fileUrl);
 
         if (!response.ok || !response.body) {
             throw new Error(`Cloudinary fetch failed: ${response.statusText}`);
         }
 
-        // Convert the web stream to a Node.js stream for Vercel's runtime
-        const body = await webStreamToNodeStream(response.body);
+        // Use the Node.js stream directly
+        const body = webStreamToNodeReadable(response.body);
         
         const filename = resumeToDownload.media.originalFilename;
         
         const headers = new Headers();
         headers.set('Content-Disposition', `attachment; filename="${filename}"`);
-        if (response.headers.has('Content-Type')) {
+        if (response.headers.get('Content-Type')) {
             headers.set('Content-Type', response.headers.get('Content-Type')!);
         }
-        if (response.headers.has('Content-Length')) {
+        if (response.headers.get('Content-Length')) {
             headers.set('Content-Length', response.headers.get('Content-Length')!);
         }
 
+        // NextResponse can handle a Node.js Readable stream when in the Node.js runtime
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return new NextResponse(body as any, { status: 200, headers });
 
