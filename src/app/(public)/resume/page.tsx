@@ -2,6 +2,7 @@
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Download, FileText, XCircle } from "lucide-react";
+//import Link from "next/link";
 //import { slugify } from "@/lib/utils";
 
 export default async function ResumePage() {
@@ -40,11 +41,11 @@ export default async function ResumePage() {
               <Button asChild className="mt-6 w-full md:mt-0 md:w-auto" size="lg">
                 {/* --- THE FINAL, SIMPLE DOWNLOAD LINK --- */}
                 <a
-                  href={defaultResume.fileUrl} // Use the URL directly from the database
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href="/api/download" // Use the URL directly from the database
+                  //target="_blank"
+                  //rel="noopener noreferrer"
                   // The download attribute is a good hint, but the URL itself does the work
-                  download
+                  //download
                 >
                   <Download className="mr-2 h-4 w-4" />
                   Download

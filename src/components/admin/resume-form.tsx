@@ -19,6 +19,7 @@ const resumeSchema = z.object({
   title: z.string().min(3, "Title is required."),
   fileUrl: z.string().url("A file must be uploaded."),
   publicId: z.string().min(1, "Public ID is missing."),
+  originalFilename: z.string().min(1, "Original filename is missing."),
 });
 
 type ResumeFormValues = z.infer<typeof resumeSchema>;
@@ -27,7 +28,7 @@ export function UploadResumeButton() {
   const [open, setOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const form = useForm<ResumeFormValues>({ resolver: zodResolver(resumeSchema), defaultValues: { title: "", fileUrl: "", publicId: "" } });
+  const form = useForm<ResumeFormValues>({ resolver: zodResolver(resumeSchema), defaultValues: { title: "", fileUrl: "", publicId: "", originalFilename: "" } });
   const fileInputRef = useRef<HTMLInputElement>(null);
   //const [originalFilename, setOriginalFilename] = useState(""); // <-- State to hold the filename for display
   
@@ -57,6 +58,7 @@ export function UploadResumeButton() {
       // Set the returned URL and publicId into the form state
       form.setValue("fileUrl", data.secure_url, { shouldValidate: true });
       form.setValue("publicId", data.public_id, { shouldValidate: true });
+      form.setValue("originalFilename", data.original_filename, { shouldValidate: true });
       //setOriginalFilename(data.original_filename); // <-- Store filename in state for UI
       toast.success(`File "${data.original_filename}" uploaded successfully!`);
 

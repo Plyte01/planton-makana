@@ -13,6 +13,7 @@ const resumeSchema = z.object({
     title: z.string().min(3, "Title is required."),
     fileUrl: z.string().url("A file must be uploaded."),
     publicId: z.string().min(1, "Public ID is missing."),
+    originalFilename: z.string().min(1, "Original filename is missing."), // <-- ADD TO SCHEMA
 });
 
 // Helper function to check for admin session
@@ -28,7 +29,7 @@ export async function uploadResume(values: z.infer<typeof resumeSchema>) {
     const validatedFields = resumeSchema.safeParse(values);
     if (!validatedFields.success) return { status: "error" as const, message: "Invalid form data." };
 
-    const { title, fileUrl, publicId } = validatedFields.data;
+    const { title, fileUrl, publicId, originalFilename } = validatedFields.data;
 
     try {
         // Step 1: Create the Media record first.
@@ -37,6 +38,7 @@ export async function uploadResume(values: z.infer<typeof resumeSchema>) {
                 url: fileUrl,
                 publicId: publicId,
                 type: MediaType.PDF, // Or determine dynamically if needed
+                originalFilename: originalFilename,
             }
         });
 
