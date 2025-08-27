@@ -6,6 +6,7 @@ import { deleteResume, setDefaultResume } from "@/server/actions/resume";
 import { Resume } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Trash2, CheckCircle, Star } from "lucide-react";
+import { Download } from "lucide-react";
 import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -37,6 +38,12 @@ export function ResumeActions({ resume }: ResumeActionsProps) {
 
     return (
         <div className="flex items-center gap-x-2">
+            {/* Link to the dynamic download endpoint with the specific ID */}
+            <Button variant="ghost" size="icon" asChild>
+                <a href={`/api/download?id=${resume.id}`} title="Download this version">
+                    <Download className="h-4 w-4" />
+                </a>
+            </Button>
             <Button 
                 variant="outline" 
                 size="sm" 

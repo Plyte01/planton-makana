@@ -1,51 +1,83 @@
 // src/app/api/download/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function GET(_req: NextRequest) {
+// Helper function to convert a Web Stream to a Node.js stream
+async function webStreamToNodeStream(webStream: ReadableStream<Uint8Array>) {
+    const reader = webStream.getReader();
+    const { PassThrough } = await import('stream');
+    const nodeStream = new PassThrough();
+    const pump = async () => {
+        const { done, value } = await reader.read();
+        if (done) {
+            nodeStream.end();
+            return;
+        }
+        nodeStream.write(value);
+        pump();
+    };
+    pump();
+    return nodeStream;
+}
+
+export async function GET(req: NextRequest) {
     try {
-        // Step 1: Find the default resume record.
-        const defaultResume = await db.resume.findFirst({
-            where: { isDefault: true, isPublic: true, isDeleted: false },
-            orderBy: { createdAt: 'desc' },
-        });
+        const session = await getServerSession(authOptions);
+        const { searchParams } = new URL(req.url);
+        const resumeId = searchParams.get("id"); // Get ID from query param
 
-        if (!defaultResume || !defaultResume.mediaId) {
-            return new NextResponse('Default resume or its media link not found.', { status: 404 });
+        let resumeToDownload;
+
+        if (resumeId) {
+            // If an ID is provided, this is likely an admin request.
+            // Ensure the user is logged in.
+            if (!session) {
+                return new NextResponse('Unauthorized: Must be logged in to download specific resumes.', { status: 401 });
+            }
+            // Fetch the specific resume by its ID
+            resumeToDownload = await db.resume.findUnique({
+                where: { id: resumeId },
+                include: { media: true },
+            });
+        } else {
+            // If NO ID is provided, this is a public request for the default resume.
+            // This does not require a session.
+            resumeToDownload = await db.resume.findFirst({
+                where: { isDefault: true, isPublic: true, isDeleted: false },
+                orderBy: { createdAt: 'desc' },
+                include: { media: true },
+            });
         }
 
-        // --- THIS IS THE NEW, MORE ROBUST LOGIC ---
-        // Step 2: Use the `mediaId` from the resume to fetch the media record directly.
-        const mediaRecord = await db.media.findUnique({
-            where: { id: defaultResume.mediaId },
-        });
+        if (!resumeToDownload || !resumeToDownload.media || !resumeToDownload.media.originalFilename) {
+            return new NextResponse('Resume not found or is missing file data.', { status: 404 });
+        }
+
+        // Fetch the file from Cloudinary as a stream
+        const response = await fetch(resumeToDownload.fileUrl);
+
+        if (!response.ok || !response.body) {
+            throw new Error(`Cloudinary fetch failed: ${response.statusText}`);
+        }
+
+        // Convert the web stream to a Node.js stream for Vercel's runtime
+        const body = await webStreamToNodeStream(response.body);
         
-        if (!mediaRecord || !mediaRecord.originalFilename) {
-            return new NextResponse('Associated media file not found or filename is missing.', { status: 404 });
-        }
-        // ------------------------------------------
-
-        // Step 3: Fetch the file from the secure Cloudinary URL.
-        const fileUrl = mediaRecord.url;
-        const response = await fetch(fileUrl);
-
-        if (!response.ok) {
-            // Log the actual error from Cloudinary for better debugging
-            console.error(`Cloudinary fetch failed with status: ${response.status}`);
-            throw new Error('Failed to fetch file from Cloudinary');
-        }
-
-        const fileBlob = await response.blob();
-        
-        // Step 4: Use the filename from the fetched media record.
-        const filename = mediaRecord.originalFilename;
+        const filename = resumeToDownload.media.originalFilename;
         
         const headers = new Headers();
         headers.set('Content-Disposition', `attachment; filename="${filename}"`);
-        headers.set('Content-Type', fileBlob.type);
+        if (response.headers.has('Content-Type')) {
+            headers.set('Content-Type', response.headers.get('Content-Type')!);
+        }
+        if (response.headers.has('Content-Length')) {
+            headers.set('Content-Length', response.headers.get('Content-Length')!);
+        }
 
-        return new NextResponse(fileBlob, { status: 200, statusText: 'OK', headers });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return new NextResponse(body as any, { status: 200, headers });
 
     } catch (error) {
         console.error('Download API Error:', error);
