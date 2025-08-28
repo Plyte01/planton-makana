@@ -27,12 +27,15 @@ export const uploadFromBuffer = (buffer: Buffer, options: any): Promise<UploadAp
 export const getSignedDownloadUrl = (publicId: string, filename: string): string => {
     // 1. Sanitize the filename to be URL-safe.
     // This is important to prevent issues with special characters in filenames.
-    const cleanFilename = slugify(filename);
+    const fileExtension = filename.substring(filename.lastIndexOf('.'));
+    const baseFilename = filename.substring(0, filename.lastIndexOf('.'));
+    const cleanFilename = `${slugify(baseFilename)}${fileExtension}`;
 
     // 2. Use the cloudinary.utils.url() method, which is designed for this.
     const signedUrl = cloudinary.utils.url(publicId, {
         // --- Core Options ---
         resource_type: 'raw', // Specify that it's a raw file
+        type: 'upload',         // The asset is in the 'upload' storage type.
         sign_url: true,       // CRUCIAL: Tell the SDK to sign the URL
         secure: true,         // Use HTTPS
 
