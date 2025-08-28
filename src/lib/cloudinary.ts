@@ -1,7 +1,6 @@
 // src/lib/cloudinary.ts
 import { v2 as cloudinary, UploadApiResponse, UploadApiErrorResponse } from 'cloudinary';
 import streamifier from 'streamifier';
-import { slugify } from './utils';
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -25,32 +24,27 @@ export const uploadFromBuffer = (buffer: Buffer, options: any): Promise<UploadAp
 };
 
 export const getSignedDownloadUrl = (publicId: string, filename: string): string => {
-    // 1. Sanitize the filename to be URL-safe.
-    // This is important to prevent issues with special characters in filenames.
-    const fileExtension = filename.substring(filename.lastIndexOf('.'));
-    const baseFilename = filename.substring(0, filename.lastIndexOf('.'));
-    const cleanFilename = `${slugify(baseFilename)}${fileExtension}`;
+    // This tells Cloudinary to force a download with a specific filename.
+    const attachmentFlag = `fl_attachment:${filename}`;
 
-    // 2. Use the cloudinary.utils.url() method, which is designed for this.
-    const signedUrl = cloudinary.utils.url(publicId, {
-        // --- Core Options ---
-        resource_type: 'raw', // Specify that it's a raw file
-        type: 'upload',         // The asset is in the 'upload' storage type.
-        sign_url: true,       // CRUCIAL: Tell the SDK to sign the URL
-        secure: true,         // Use HTTPS
-
-        // --- Download Transformation ---
-        // This is the key. We apply transformations directly.
-        transformation: [
-            {
-                // This flag forces the browser to treat the URL as a download attachment.
-                // We append the sanitized filename to it.
-                flags: `attachment:${cleanFilename}`
-            }
-        ]
+    const signedUrl = cloudinary.utils.private_download_url(publicId, '', {
+        resource_type: 'raw', // Important for non-image files
+        type: 'upload',
+        // The URL will be valid for 1 hour
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        // Apply the download flag as a transformation
+        attachment: true,
     });
 
-    return signedUrl;
+    // Manually inject the filename transformation for a cleaner download name
+    // This is a more robust way than relying on the `attachment` parameter alone for naming.
+    const urlParts = signedUrl.split('/upload/');
+    if (urlParts.length === 2) {
+        return `${urlParts[0]}/upload/${attachmentFlag}/${urlParts[1]}`;
+    }
+
+    return signedUrl; // Fallback
+
 };
-// -----------------------------------------------------------
+
 export default cloudinary;
